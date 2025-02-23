@@ -1,43 +1,95 @@
-import {StyleSheet, Text} from 'react-native';
-import {NativeBaseProvider, Input, Center, FlatList, Button} from 'native-base';
-import {useSelector} from 'react-redux';
+import {StyleSheet} from 'react-native';
+import {NativeBaseProvider, Input, Center, FlatList} from 'native-base';
+import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
 
 import AddBtn from '@/components/AddBtn';
 import NoteCard from '@/components/NoteCard';
 import type {RootState} from '@/stores';
-import {useState} from 'react';
+import {addNote, deleteNote} from '@/stores/note';
+import {useMemo, useState} from 'react';
+import type {Note} from '@/interface';
+
+function generateId(length = 10) {
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (let i = 0; i < length; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
 
 function HomeScreen() {
-  const notes = useSelector((state: RootState) => state.note.notes);
+  const [searchKey, setSearchKey] = useState<string>('');
+  const notes = useSelector((state: RootState) => state.note.notes as Note[]);
   const navigation = useNavigation();
 
-  console.log('render');
+  const dispatch = useDispatch();
 
-  const onCardPress = () => {
-    navigation.navigate('NoteDetail');
+  const filterNotes = useMemo(() => {
+    if (searchKey === '') {
+      return notes;
+    }
+
+    const list: Note[] = [];
+
+    notes.forEach(note => {
+      if (note.description.includes(searchKey)) {
+        list.push(note);
+      }
+    });
+
+    return list;
+  }, [searchKey, notes]);
+
+  const onCardPress = (id: string) => {
+    navigation.navigate('NoteDetail', {
+      id,
+    });
   };
 
   const onAddPress = () => {
-    navigation.navigate('NoteDetail', {
-      mode: 'add',
+    const id = generateId();
+
+    dispatch(
+      addNote({
+        id,
+        description: '',
+        info: [],
+      }),
+    );
+
+    setTimeout(() => {
+      navigation.navigate('NoteDetail', {
+        id,
+      });
     });
+  };
+
+  const onDeletePress = (id: string) => {
+    dispatch(deleteNote(id));
   };
 
   return (
     <NativeBaseProvider isSSR={false}>
       <Center style={styles.searchBar}>
-        <Input />
+        <Input
+          value={searchKey}
+          onChangeText={v => setSearchKey(v)}
+          placeholder="输入关键词进行搜索"
+        />
       </Center>
 
       <FlatList
-        data={notes}
+        data={filterNotes}
         renderItem={({item}) => (
           <NoteCard
-            title={item.title}
+            title={item.description}
             style={styles.card}
-            onPress={onCardPress}
+            onPress={() => onCardPress(item.id)}
             key={item.id}
+            onDeletePress={() => onDeletePress(item.id)}
           />
         )}
         style={styles.cardSection}
@@ -50,12 +102,13 @@ function HomeScreen() {
 
 const styles = StyleSheet.create({
   searchBar: {
-    paddingVertical: 24,
+    paddingTop: 24,
     paddingHorizontal: 16,
   },
   cardSection: {
-    paddingVertical: 24,
     paddingHorizontal: 16,
+    marginBottom: 16,
+    marginTop: 16,
   },
   card: {
     marginBottom: 12,

@@ -1,7 +1,10 @@
 export interface Note {
   id: string;
   description: string;
-  password: string;
-  account: string[];
-  others: string[];
+  info: NoteInfo[];
+}
+
+interface NoteInfo {
+  label: string;
+  value: string;
 }

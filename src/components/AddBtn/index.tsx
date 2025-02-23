@@ -40,6 +40,10 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 100,
+    backgroundColor: '#e0f7fa', // 选中卡片的背景颜色，可以改成其他颜色
+    shadowOpacity: 0.3, // 增加阴影的强度
+    shadowRadius: 8, // 增加阴影的扩展
+    elevation: 5, // Android 阴影强度更高
   },
 });
 

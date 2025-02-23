@@ -1,16 +1,17 @@
 import type {FC} from 'react';
 import {StyleSheet, Text} from 'react-native';
 import type {StyleProp, ViewStyle} from 'react-native';
-import {Box, Pressable} from 'native-base';
+import {Box, Button, Pressable, View} from 'native-base';
 
 interface NoteCardProps {
   title: string;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  onDeletePress?:()=>void;
 }
 
 const NoteCard: FC<NoteCardProps> = props => {
-  const {title, style = {}, onPress} = props;
+  const {title, style = {}, onPress,onDeletePress} = props;
 
   return (
     <Pressable onPress={onPress}>
@@ -28,7 +29,13 @@ const NoteCard: FC<NoteCardProps> = props => {
               ],
             },
           ]}>
-          <Text style={styles.text}>{title}</Text>
+          <View style={{flex: 1}}>
+            <Text style={styles.text}>{title}</Text>
+          </View>
+
+          <Button size="md" padding={1} onPress={onDeletePress}>
+            删除
+          </Button>
         </Box>
       )}
     </Pressable>
@@ -38,8 +45,13 @@ const NoteCard: FC<NoteCardProps> = props => {
 const styles = StyleSheet.create({
   box: {
     width: '100%',
-    padding: 16,
     borderRadius: 6,
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    paddingLeft: 16,
+    paddingRight: 16,
   },
   text: {
     fontSize: 14,

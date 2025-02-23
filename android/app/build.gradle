@@ -92,6 +92,12 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release  {
+            storeFile file('my-release-key.keystore') // keystore 文件放在项目的 android/app 目录下
+            storePassword '177237'  // keystore 密码
+            keyAlias 'my-key-alias'  // 密钥别名
+            keyPassword '177237'  // 密钥密码
+        }
     }
     buildTypes {
         debug {
@@ -100,9 +106,9 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
-            minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            signingConfig signingConfigs.release
+            minifyEnabled false // 是否启用 ProGuard 或 R8 压缩
+            shrinkResources false // 是否启用资源压缩
         }
     }
 }

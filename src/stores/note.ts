@@ -18,7 +18,7 @@ export const noteSlice = createSlice({
       state.notes.push(action.payload);
     },
     deleteNote: (state, action: PayloadAction<string>) => {
-      const index = state.notes.findIndex(item => (item.id = action.payload));
+      const index = state.notes.findIndex(item => item.id === action.payload);
       if (index === -1) {
         return;
       }
@@ -26,7 +26,7 @@ export const noteSlice = createSlice({
     },
     updateNote: (state, action: PayloadAction<Note>) => {
       const index = state.notes.findIndex(
-        item => (item.id = action.payload.id),
+        item => item.id === action.payload.id,
       );
       if (index === -1) {
         return;
