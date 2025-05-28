@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@ant-design/icons": "5.x",
     "@react-native-async-storage/async-storage": "^2.0.0",
     "@react-native-clipboard/clipboard": "^1.16.1",
     "@react-navigation/native": "^6.1.18",
@@ -20,6 +21,8 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.75.3",
+    "react-native-document-picker": "^9.3.1",
+    "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.20.0",
     "react-native-reanimated": "^3.15.3",
     "react-native-safe-area-context": "3.3.2",
