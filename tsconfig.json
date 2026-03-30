@@ -1,8 +1,13 @@
 {
   "extends": "@react-native/typescript-config",
   "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     "types": ["jest"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["src", "App.tsx", "tamagui.config.ts"],
   "exclude": ["**/node_modules", "**/Pods"]
 }
