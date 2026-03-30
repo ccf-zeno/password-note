@@ -1,28 +1,32 @@
-import React, {useEffect, useMemo, useState} from 'react';
-import {StyleSheet, ScrollView, View} from 'react-native';
+import React, {useMemo, useState, useCallback, useEffect} from 'react';
 import {
-  NativeBaseProvider,
-  Box,
-  Button,
-  FormControl,
-  Input,
-  Text,
-  VStack,
-  HStack,
-  IconButton,
-  Icon,
-  useToast,
+  StyleSheet,
+  ScrollView,
+  Alert,
   Modal,
+  TouchableOpacity,
   Pressable,
-} from 'native-base';
+  View,
+  StatusBar,
+  Text as RNText,
+  ToastAndroid,
+  Platform,
+  BackHandler,
+} from 'react-native';
+import {Input, Text, XStack, YStack} from 'tamagui';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {useSelector, useDispatch} from 'react-redux';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, useIsFocused} from '@react-navigation/native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import type {RootState} from '@/stores';
 import {updateNote, addNote} from '@/stores/note';
 import type {Note} from '@/interface';
+import ShaderBackground from '@/components/ShaderBackground';
+import Header, {HEADER_HEIGHT_CONTENT} from '@/components/Header';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import {lightTap, mediumTap} from '@/utils/haptic';
 
 interface Info {
   label: string;
@@ -32,282 +36,462 @@ interface Info {
 const NoteDetail = () => {
   const route = useRoute();
   const navigation = useNavigation();
-  const toast = useToast();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
-  const notes = useSelector((state: RootState) => state.note.notes);
-
+  const notes = useSelector((state: RootState) => state.note.notes as Note[]);
   const routeId = route.params?.id as string;
+  const isNew = routeId === 'new';
 
-  const [currentId, setCurrentId] = useState<string>(routeId);
-  const [visible, setVisible] = useState(false);
+  const existingNote = useMemo(
+    () => (isNew ? undefined : notes.find(n => n.id === routeId)),
+    [notes, routeId, isNew],
+  );
+
+  // 本地编辑状态
+  const [desc, setDesc] = useState(existingNote?.description ?? '');
+  const [infoList, setInfoList] = useState<Info[]>(existingNote?.info ?? []);
+  const [isEditing, setIsEditing] = useState(isNew);
+  const [modalVisible, setModalVisible] = useState(false);
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editInfo, setEditInfo] = useState<Info>({label: '', value: ''});
 
-  // 获取当前笔记index和数据
-  const noteIndex = useMemo(
-    () => notes.findIndex(note => note.id === currentId),
-    [notes, currentId],
-  );
-  const note: Note | undefined =
-    noteIndex !== -1 ? notes[noteIndex] : undefined;
+  // 未保存提醒
+  const [unsavedOpen, setUnsavedOpen] = useState(false);
 
-  // 初始化新建笔记id
-  useEffect(() => {
-    if (currentId === 'new') {
-      const newId = generateId();
-      dispatch(addNote({id: newId, description: '', info: []}));
-      setCurrentId(newId);
-      navigation.setParams({id: newId});
+  const headerHeight = insets.top + HEADER_HEIGHT_CONTENT;
+  const canSave = desc.trim().length > 0 || infoList.length > 0;
+
+  // 判断是否有未保存的改动
+  const hasUnsavedChanges = useCallback(() => {
+    if (!isEditing) return false;
+    if (isNew) {
+      return desc.trim().length > 0 || infoList.length > 0;
     }
-  }, [currentId, dispatch, navigation]);
+    // 编辑已有笔记：对比原始数据
+    const origDesc = existingNote?.description ?? '';
+    const origInfo = existingNote?.info ?? [];
+    if (desc !== origDesc) return true;
+    if (infoList.length !== origInfo.length) return true;
+    return infoList.some(
+      (item, i) => item.label !== origInfo[i].label || item.value !== origInfo[i].value,
+    );
+  }, [isEditing, isNew, desc, infoList, existingNote]);
 
-  // 设置导航标题
+  // 尝试返回
+  const tryGoBack = useCallback(() => {
+    if (hasUnsavedChanges()) {
+      setUnsavedOpen(true);
+    } else {
+      navigation.goBack();
+    }
+  }, [hasUnsavedChanges, navigation]);
+
+  // 不保存直接返回
+  const discardAndGoBack = useCallback(() => {
+    setUnsavedOpen(false);
+    navigation.goBack();
+  }, [navigation]);
+
+  // 保存并返回
+  const saveAndGoBack = useCallback(() => {
+    setUnsavedOpen(false);
+    if (isNew) {
+      const newId = generateId();
+      dispatch(addNote({id: newId, description: desc, info: infoList}));
+    } else {
+      dispatch(updateNote({id: routeId, description: desc, info: infoList}));
+    }
+    navigation.goBack();
+  }, [isNew, desc, infoList, routeId, dispatch, navigation]);
+
+  // Android 系统返回键拦截
   useEffect(() => {
-    navigation.setOptions({
-      title: note?.description?.trim() || '笔记详情',
-    });
-  }, [note?.description, navigation]);
-
-  if (!note) {
-    return (
-      <NativeBaseProvider>
-        <Box flex={1} justifyContent="center" alignItems="center">
-          <Text>笔记不存在</Text>
-        </Box>
-      </NativeBaseProvider>
-    );
-  }
-
-  // 更新笔记描述
-  const setDesc = (text: string) => {
-    dispatch(updateNote({id: currentId, description: text, info: note.info}));
-  };
-
-  // 更新信息列表
-  const setInfoList = (infoList: Info[]) => {
-    dispatch(
-      updateNote({
-        id: currentId,
-        description: note.description,
-        info: infoList,
-      }),
-    );
-  };
-
-  // 新增或编辑弹窗确认
-  const onModalOkPress = () => {
-    const newInfo = [...note.info];
-    if (editIndex === null) {
-      if (!editInfo.value.trim()) {
-        toast.show({
-          description: '信息内容不能为空',
-          placement: 'bottom',
-          duration: 3000,
-        });
-        return;
+    if (!isFocused) return;
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (hasUnsavedChanges()) {
+        setUnsavedOpen(true);
+        return true;
       }
+      return false;
+    });
+    return () => handler.remove();
+  }, [isFocused, hasUnsavedChanges]);
+
+  // 保存
+  const onSave = () => {
+    mediumTap();
+    if (isNew) {
+      const newId = generateId();
+      dispatch(addNote({id: newId, description: desc, info: infoList}));
+      navigation.goBack();
+    } else {
+      dispatch(updateNote({id: routeId, description: desc, info: infoList}));
+      setIsEditing(false);
+    }
+  };
+
+  const onCopyPress = (text: string) => {
+    Clipboard.setString(text);
+    lightTap();
+    // Android 13 (API 33+) 系统会自动弹出剪贴板提示，无需重复 toast
+    if (Platform.OS !== 'android' || (Platform.Version as number) < 33) {
+      ToastAndroid.show('已复制', ToastAndroid.SHORT);
+    }
+  };
+
+  const onModalOkPress = () => {
+    if (!editInfo.value.trim()) {
+      Alert.alert('', '信息内容不能为空');
+      return;
+    }
+    const newInfo = [...infoList];
+    if (editIndex === null) {
       newInfo.push(editInfo);
     } else {
-      if (!editInfo.value.trim()) {
-        toast.show({
-          description: '信息内容不能为空',
-          placement: 'bottom',
-          duration: 3000,
-        });
-        return;
-      }
       newInfo[editIndex] = editInfo;
     }
     setInfoList(newInfo);
-    setVisible(false);
+    setModalVisible(false);
     setEditInfo({label: '', value: ''});
     setEditIndex(null);
   };
 
-  // 打开编辑弹窗
-  const onEditPress = (index: number) => {
+  const onEditInfoPress = (index: number) => {
     setEditIndex(index);
-    setEditInfo(note.info[index]);
-    setVisible(true);
+    setEditInfo(infoList[index]);
+    setModalVisible(true);
   };
 
-  // 删除信息项
-  const onDeletePress = (index: number) => {
-    const newInfo = [...note.info];
+  const onDeleteInfoPress = (index: number) => {
+    lightTap();
+    const newInfo = [...infoList];
     newInfo.splice(index, 1);
     setInfoList(newInfo);
-    toast.show({description: '已删除'});
   };
 
-  // 复制信息内容
-  const onCopyPress = (text: string) => {
-    Clipboard.setString(text);
-    toast.show({description: '复制成功'});
-  };
-
-  // 打开新增弹窗
-  const onAddPress = () => {
+  const onAddInfoPress = () => {
     setEditInfo({label: '', value: ''});
     setEditIndex(null);
-    setVisible(true);
+    setModalVisible(true);
   };
 
+  // Header 右侧按钮
+  const headerRight = isEditing ? (
+    <TouchableOpacity
+      onPress={onSave}
+      disabled={!canSave}
+      activeOpacity={canSave ? 0.7 : 1}>
+      <RNText style={[styles.headerAction, !canSave && styles.headerActionDisabled]}>
+        保存
+      </RNText>
+    </TouchableOpacity>
+  ) : (
+    <TouchableOpacity onPress={() => setIsEditing(true)} activeOpacity={0.7}>
+      <RNText style={styles.headerAction}>编辑</RNText>
+    </TouchableOpacity>
+  );
+
   return (
-    <NativeBaseProvider>
-      <ScrollView style={styles.page} keyboardShouldPersistTaps="handled">
-        {/* 描述输入框 */}
-        <Box bg="white" p={4} borderRadius="xl" shadow={1} mb={6}>
-          <Text fontSize="lg" fontWeight="bold" mb={3}>
+    <View style={StyleSheet.absoluteFill}>
+      <ShaderBackground />
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+
+      <Header
+        title={isNew ? '新增笔记' : (desc.trim() || '笔记详情')}
+        rightAction={headerRight}
+        onBack={tryGoBack}
+      />
+
+      <ScrollView
+        style={styles.page}
+        contentContainerStyle={{paddingTop: headerHeight + 16, paddingBottom: isEditing ? 100 : 40}}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+
+        {/* 描述 */}
+        <View style={styles.card}>
+          <Text fontSize={13} color="#64748b" marginBottom={8} fontWeight="600">
             描述
           </Text>
-          <Input
-            placeholder="请输入笔记描述"
-            variant="filled"
-            borderRadius="md"
-            fontSize="md"
-            value={note.description}
-            onChangeText={setDesc}
-            clearButtonMode="while-editing"
-          />
-        </Box>
+          {isEditing ? (
+            <Input
+              placeholder="请输入笔记描述（如：招商银行）"
+              value={desc}
+              onChangeText={setDesc}
+              backgroundColor="#f8fafc"
+              borderWidth={0}
+              borderRadius={8}
+              fontSize={15}
+              paddingHorizontal="$3"
+              color="#1e293b"
+            />
+          ) : (
+            <Text fontSize={15} color="#1e293b" paddingHorizontal="$3" paddingVertical="$2">
+              {desc || '暂无描述'}
+            </Text>
+          )}
+        </View>
 
-        {/* 全部信息列表 */}
-        <Box>
-          <Text fontSize="lg" fontWeight="bold" mb={3}>
+        {/* 信息列表 */}
+        <XStack
+          justifyContent="space-between"
+          alignItems="center"
+          marginTop={16}
+          marginBottom={12}
+          paddingHorizontal={4}>
+          <Text fontSize={13} fontWeight="600" color="#64748b">
             全部信息
           </Text>
+          <Text fontSize={12} color="#94a3b8">
+            {infoList.length} 项
+          </Text>
+        </XStack>
 
-          {note.info.length === 0 ? (
-            <Text color="gray.400" italic mb={4}>
-              暂无信息，点击下方新增按钮添加
-            </Text>
-          ) : (
-            <VStack space={3} mb={4}>
-              {note.info.map((info, index) => (
-                <Box
-                  key={index}
-                  bg="gray.50"
-                  p={4}
-                  borderRadius="md"
-                  shadow={0}
-                  flexDirection="row"
-                  alignItems="center"
-                  justifyContent="space-between">
-                  <VStack flex={1} mr={3}>
-                    <Text fontSize="md" fontWeight="medium" isTruncated>
+        {infoList.length === 0 ? (
+          <View style={styles.card}>
+            <YStack alignItems="center" paddingVertical={20}>
+              <MaterialIcons name="add-circle-outline" size={36} color="#cbd5e1" />
+              <Text color="#94a3b8" marginTop={8} fontSize={14}>
+                {isEditing ? '暂无信息，点击下方按钮添加' : '暂无信息'}
+              </Text>
+            </YStack>
+          </View>
+        ) : (
+          <YStack gap={6} marginBottom={12}>
+            {infoList.map((info, index) => (
+              <Pressable
+                key={index}
+                style={({pressed}) => [styles.card, pressed && styles.cardPressed]}
+                onPress={isEditing ? () => onEditInfoPress(index) : () => onCopyPress(info.value)}>
+                <XStack alignItems="center" justifyContent="space-between">
+                  <YStack flex={1} marginRight={8}>
+                    <Text fontSize={15} fontWeight="500" color="#1e293b" numberOfLines={2}>
                       {info.value}
                     </Text>
                     {info.label ? (
-                      <Text fontSize="sm" color="gray.500" isTruncated>
+                      <Text fontSize={12} color="#94a3b8" marginTop={4}>
                         {info.label}
                       </Text>
                     ) : null}
-                  </VStack>
+                  </YStack>
 
-                  <HStack space={0}>
-                    <IconButton
-                      icon={<Icon as={MaterialIcons} name="content-copy" />}
-                      borderRadius="full"
-                      _icon={{color: 'blue.500', size: 'md'}}
-                      onPress={() => onCopyPress(info.value)}
-                      _pressed={{bg: 'blue.100'}}
-                      accessibilityLabel="复制信息"
-                    />
-                    <IconButton
-                      icon={<Icon as={MaterialIcons} name="edit" />}
-                      borderRadius="full"
-                      _icon={{color: 'blue.500', size: 'md'}}
-                      onPress={() => onEditPress(index)}
-                      _pressed={{bg: 'blue.100'}}
-                      accessibilityLabel="编辑信息"
-                    />
-                    <IconButton
-                      icon={<Icon as={MaterialIcons} name="delete" />}
-                      borderRadius="full"
-                      _icon={{color: 'red.500', size: 'md'}}
-                      onPress={() => onDeletePress(index)}
-                      _pressed={{bg: 'red.100'}}
-                      accessibilityLabel="删除信息"
-                    />
-                  </HStack>
-                </Box>
-              ))}
-            </VStack>
-          )}
+                  {isEditing && (
+                    <Pressable
+                      onPress={() => onDeleteInfoPress(index)}
+                      style={({pressed}) => [styles.deleteBtn, pressed && styles.btnPressed]}>
+                      <MaterialIcons name="delete-outline" size={15} color="#ef4444" />
+                    </Pressable>
+                  )}
+                </XStack>
+              </Pressable>
+            ))}
+          </YStack>
+        )}
 
-          <Button onPress={onAddPress} borderRadius="md" size="lg" w="full">
-            新增
-          </Button>
-        </Box>
+      </ScrollView>
 
-        {/* 编辑/新增信息弹窗 */}
-        <Modal isOpen={visible} onClose={() => setVisible(false)} avoidKeyboard>
-          <Modal.Content
-            maxWidth="400px"
-            bg="white"
-            borderRadius="lg"
-            shadow={3}
-            _dark={{bg: 'gray.800'}}>
-            <Modal.Body pt={6} px={4} pb={6}>
-              <FormControl mb={4}>
-                <FormControl.Label>标题（可选）</FormControl.Label>
+      {/* 悬浮新增信息按钮 */}
+      {isEditing && (
+        <View style={[styles.addInfoBar, {paddingBottom: insets.bottom || 16}]}>
+          <TouchableOpacity onPress={onAddInfoPress} style={styles.addInfoBtn} activeOpacity={0.8}>
+            <MaterialIcons name="add" size={20} color="#fff" />
+            <Text fontSize={15} color="white" fontWeight="600" marginLeft={6}>
+              新增信息
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 编辑/新增弹窗 */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setModalVisible(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setModalVisible(false)}>
+          <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+            <Text fontSize={18} fontWeight="700" color="#1e293b" marginBottom={16}>
+              {editIndex === null ? '新增信息' : '编辑信息'}
+            </Text>
+
+            <YStack gap={12}>
+              <YStack>
+                <Text fontSize={13} color="#64748b" marginBottom={4}>
+                  标题（可选）
+                </Text>
                 <Input
-                  placeholder="一个标记，可以为空"
+                  placeholder="如：卡号、密码、手机号"
                   value={editInfo.label}
                   onChangeText={text => setEditInfo({...editInfo, label: text})}
-                  autoFocus
-                  borderRadius="md"
-                  variant="filled"
+                  backgroundColor="#f8fafc"
+                  borderWidth={0}
+                  borderRadius={8}
+                  fontSize={15}
+                  color="#1e293b"
                 />
-              </FormControl>
-              <FormControl isRequired>
-                <FormControl.Label>信息内容</FormControl.Label>
+              </YStack>
+
+              <YStack>
+                <Text fontSize={13} color="#64748b" marginBottom={4}>
+                  信息内容 *
+                </Text>
                 <Input
                   placeholder="具体保存的信息"
                   value={editInfo.value}
                   onChangeText={text => setEditInfo({...editInfo, value: text})}
-                  borderRadius="md"
-                  variant="filled"
+                  backgroundColor="#f8fafc"
+                  borderWidth={0}
+                  borderRadius={8}
+                  fontSize={15}
+                  color="#1e293b"
+                  autoFocus
                 />
-              </FormControl>
-            </Modal.Body>
-            <Modal.Footer
-              borderTopWidth={0}
-              px={4}
-              py={3}
-              justifyContent="flex-end"
-              space={2}
-              bg="white">
-              <Button
-                variant="ghost"
-                colorScheme="coolGray"
-                onPress={() => setVisible(false)}
-                mr={3}
-                px={5}>
-                取消
-              </Button>
-              <Button
+              </YStack>
+            </YStack>
+
+            <XStack justifyContent="flex-end" marginTop={20} gap={10}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.modalCancelBtn}>
+                <Text fontSize={15} color="#64748b" fontWeight="500">
+                  取消
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={onModalOkPress}
-                px={6}
-                colorScheme="primary"
-                variant="solid">
-                确认
-              </Button>
-            </Modal.Footer>
-          </Modal.Content>
-        </Modal>
-      </ScrollView>
-    </NativeBaseProvider>
+                style={styles.modalConfirmBtn}
+                activeOpacity={0.8}>
+                <Text fontSize={15} color="white" fontWeight="600">
+                  确认
+                </Text>
+              </TouchableOpacity>
+            </XStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 未保存提醒 */}
+      <ConfirmDialog
+        open={unsavedOpen}
+        onClose={() => setUnsavedOpen(false)}
+        title="未保存的更改"
+        description="当前有未保存的编辑内容，是否保存？"
+        actions={[
+          {label: '不保存', onPress: discardAndGoBack},
+          {
+            label: '保存',
+            color: 'white',
+            backgroundColor: '#6366f1',
+            onPress: saveAndGoBack,
+          },
+        ]}
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  headerAction: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6366f1',
+    includeFontPadding: false,
+  },
+  headerActionDisabled: {
+    color: '#cbd5e1',
+  },
   page: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    paddingHorizontal: 16,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: 14,
+    borderRadius: 16,
+  },
+  cardPressed: {
+    backgroundColor: '#f8fafc',
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366f1',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  iconBtn: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#eef2ff',
+  },
+  deleteBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#fef2f2',
+  },
+  btnPressed: {
+    opacity: 0.7,
+  },
+  addInfoBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 16,
     paddingTop: 12,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  addInfoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6366f1',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+  },
+  modalConfirmBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#6366f1',
   },
 });
 

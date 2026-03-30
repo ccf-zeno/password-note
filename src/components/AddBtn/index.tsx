@@ -1,49 +1,40 @@
 import type {FC} from 'react';
-import {StyleSheet, Text} from 'react-native';
+import {Pressable, StyleSheet} from 'react-native';
 import type {StyleProp, ViewStyle} from 'react-native';
-import {Box, Pressable, IconButton, Icon, AddIcon} from 'native-base';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-interface NoteCardProps {
+interface AddBtnProps {
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
 }
 
-const AddBtn: FC<NoteCardProps> = props => {
-  const {title, style = {}, onPress} = props;
-
+const AddBtn: FC<AddBtnProps> = ({style, onPress}) => {
   return (
-    <Pressable>
-      {({isHovered, isFocused, isPressed}) => (
-        <IconButton
-          icon={<AddIcon />}
-          bg={isPressed ? 'coolGray.200' : 'white'}
-          style={[
-            style,
-            styles.box,
-            {
-              transform: [
-                {
-                  scale: isPressed ? 0.98 : 1,
-                },
-              ],
-            },
-          ]}
-          onPress={onPress}
-        />
-      )}
+    <Pressable
+      onPress={onPress}
+      style={({pressed}) => [styles.btn, style, pressed && styles.pressed]}>
+      <MaterialIcons name="add" size={28} color="#fff" />
     </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  box: {
-    width: 50,
-    height: 50,
-    borderRadius: 100,
-    backgroundColor: '#e0f7fa', // 选中卡片的背景颜色，可以改成其他颜色
-    shadowOpacity: 0.3, // 增加阴影的强度
-    shadowRadius: 8, // 增加阴影的扩展
-    elevation: 5, // Android 阴影强度更高
+  btn: {
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#6366f1',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  pressed: {
+    transform: [{scale: 0.9}],
+    backgroundColor: '#4f46e5',
   },
 });
 
