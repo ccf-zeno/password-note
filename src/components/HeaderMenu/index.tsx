@@ -37,7 +37,9 @@ export default function HeaderMenu() {
     try {
       const imported = await importData();
       dispatch(setNoteList(imported.notes));
-      dispatch(setQuickCopyList(imported.quickCopy));
+      if (imported.quickCopy.length > 0) {
+        dispatch(setQuickCopyList(imported.quickCopy));
+      }
       showToast('导入成功');
     } catch (e) {
       showToast('导入失败');
