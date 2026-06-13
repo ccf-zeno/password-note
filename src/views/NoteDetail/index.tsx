@@ -30,6 +30,7 @@ import type { Note } from '@/interface';
 import ShaderBackground from '@/components/ShaderBackground';
 import Header, { HEADER_HEIGHT_CONTENT } from '@/components/Header';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import InfoEditModal from '@/components/InfoEditModal';
 import { lightTap, mediumTap } from '@/utils/haptic';
 
 interface Info {
@@ -141,23 +142,6 @@ const NoteDetail = () => {
     Clipboard.setString(text);
     lightTap();
     ToastAndroid.show('已复制', ToastAndroid.SHORT);
-  };
-
-  const onModalOkPress = () => {
-    if (!editInfo.value.trim()) {
-      Alert.alert('', '信息内容不能为空');
-      return;
-    }
-    const newInfo = [...infoList];
-    if (editIndex === null) {
-      newInfo.push(editInfo);
-    } else {
-      newInfo[editIndex] = editInfo;
-    }
-    setInfoList(newInfo);
-    setModalVisible(false);
-    setEditInfo({ label: '', value: '' });
-    setEditIndex(null);
   };
 
   const onEditInfoPress = (index: number) => {
@@ -353,91 +337,24 @@ const NoteDetail = () => {
       )}
 
       {/* 编辑/新增弹窗 */}
-      <Modal
+      <InfoEditModal
         visible={modalVisible}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setModalVisible(false)}
-        >
-          <Pressable
-            style={styles.modalContent}
-            onPress={e => e.stopPropagation()}
-          >
-            <Text
-              fontSize={18}
-              fontWeight="700"
-              color="#1e293b"
-              marginBottom={16}
-            >
-              {editIndex === null ? '新增信息' : '编辑信息'}
-            </Text>
-
-            <YStack gap={12}>
-              <YStack>
-                <Text fontSize={13} color="#64748b" marginBottom={4}>
-                  标题（可选）
-                </Text>
-                <Input
-                  placeholder="如：卡号、密码、手机号"
-                  value={editInfo.label}
-                  onChangeText={text =>
-                    setEditInfo({ ...editInfo, label: text })
-                  }
-                  backgroundColor="#f8fafc"
-                  borderWidth={0}
-                  borderRadius={8}
-                  fontSize={15}
-                  color="#1e293b"
-                />
-              </YStack>
-
-              <YStack>
-                <Text fontSize={13} color="#64748b" marginBottom={4}>
-                  信息内容 *
-                </Text>
-                <Input
-                  placeholder="具体保存的信息"
-                  value={editInfo.value}
-                  onChangeText={text =>
-                    setEditInfo({ ...editInfo, value: text })
-                  }
-                  backgroundColor="#f8fafc"
-                  borderWidth={0}
-                  borderRadius={8}
-                  fontSize={15}
-                  color="#1e293b"
-                  autoFocus
-                />
-              </YStack>
-            </YStack>
-
-            <XStack justifyContent="flex-end" marginTop={20} gap={10}>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={styles.modalCancelBtn}
-              >
-                <Text fontSize={15} color="#64748b" fontWeight="500">
-                  取消
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={onModalOkPress}
-                style={styles.modalConfirmBtn}
-                activeOpacity={0.8}
-              >
-                <Text fontSize={15} color="white" fontWeight="600">
-                  确认
-                </Text>
-              </TouchableOpacity>
-            </XStack>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setModalVisible(false)}
+        onConfirm={info => {
+          const newInfo = [...infoList];
+          if (editIndex === null) {
+            newInfo.push(info);
+          } else {
+            newInfo[editIndex] = info;
+          }
+          setInfoList(newInfo);
+          setModalVisible(false);
+          setEditIndex(null);
+        }}
+        title={editIndex === null ? '新增信息' : '编辑信息'}
+        initialLabel={editInfo.label}
+        initialValue={editInfo.value}
+      />
 
       {/* 未保存提醒 */}
       <ConfirmDialog
@@ -525,37 +442,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#6366f1',
     paddingVertical: 14,
     borderRadius: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  modalCancelBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
-  },
-  modalConfirmBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#6366f1',
   },
 });
 

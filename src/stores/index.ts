@@ -1,18 +1,24 @@
-import {configureStore} from '@reduxjs/toolkit';
+import {configureStore, combineReducers} from '@reduxjs/toolkit';
 import {persistReducer} from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import noteReducer from './note';
+import quickCopyReducer from './quickCopy';
+
+const rootReducer = combineReducers({
+  note: noteReducer,
+  quickCopy: quickCopyReducer,
+});
+
+const persistedReducer = persistReducer(
+  {
+    key: 'root',
+    storage: AsyncStorage,
+  },
+  rootReducer,
+);
 
 const store = configureStore({
-  reducer: {
-    note: persistReducer(
-      {
-        key: 'note',
-        storage: AsyncStorage,
-      },
-      noteReducer,
-    ),
-  },
+  reducer: persistedReducer,
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {

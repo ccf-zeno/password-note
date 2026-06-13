@@ -1,28 +1,35 @@
 import RNFS from 'react-native-fs';
 import DocumentPicker from 'react-native-document-picker';
-import type {Note} from '@/interface';
+import type {Note, QuickCopyItem} from '@/interface';
 
-/**
- * 导出数据到 JSON 文件
- */
-export async function exportNotes(notes: Note[]) {
+interface BackupData {
+  notes: Note[];
+  quickCopy: QuickCopyItem[];
+}
+
+export async function exportData(notes: Note[], quickCopy: QuickCopyItem[]) {
   try {
+    const data: BackupData = {notes, quickCopy};
     const path = `${RNFS.DownloadDirectoryPath}/notes-backup-${Date.now()}.json`;
-    await RNFS.writeFile(path, JSON.stringify(notes, null, 2), 'utf8');
+    await RNFS.writeFile(path, JSON.stringify(data, null, 2), 'utf8');
     return path;
   } catch (err) {
     throw new Error('导出失败');
   }
 }
 
-/**
- * 从文件中导入数据
- */
-export async function importNotes(): Promise<Note[]> {
+export async function importData(): Promise<BackupData> {
   try {
     const res = await DocumentPicker.pickSingle({type: [DocumentPicker.types.allFiles]});
     const fileContent = await RNFS.readFile(res.uri, 'utf8');
-    return JSON.parse(fileContent) as Note[];
+    const parsed = JSON.parse(fileContent);
+    if (Array.isArray(parsed)) {
+      return {notes: parsed as Note[], quickCopy: []};
+    }
+    return {
+      notes: parsed.notes ?? [],
+      quickCopy: parsed.quickCopy ?? [],
+    };
   } catch (err) {
     throw new Error('导入失败');
   }

@@ -302,16 +302,7 @@ function AllNotes() {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => {
-                  setSheetVisible(false);
-                  setSheetTargetId(null);
-                }}>
-                <Text fontSize={15} fontWeight="600" color="#64748b">
-                  取消
-                </Text>
-              </TouchableOpacity>
+              <YStack height={insets.bottom} />
             </YStack>
           </Pressable>
         </Pressable>

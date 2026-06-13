@@ -82,8 +82,8 @@ android {
         applicationId "com.passwordnote"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "2.1.0"
+        versionCode 5
+        versionName "2.2.0"
     }
     signingConfigs {
         debug {
@@ -104,7 +104,8 @@ android {
             reset()
             enable true
             universalApk false
-            include "arm64-v8a"
+            def isRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
+            include isRelease ? "arm64-v8a" : "arm64-v8a,x86_64"
         }
     }
 

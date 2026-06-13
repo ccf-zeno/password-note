@@ -10237,6 +10237,7 @@ __metadata:
     react-native-fs: ^2.20.0
     react-native-gesture-handler: ^2.30.0
     react-native-reanimated: latest
+    react-native-reorderable-list: ^0.18.0
     react-native-safe-area-context: ^5.5.2
     react-native-screens: ^4.24.0
     react-native-vector-icons: ^10.3.0
@@ -10665,6 +10666,18 @@ react-native-reanimated@latest:
     react-native: 0.80 - 0.84
     react-native-worklets: 0.7 - 0.8
   checksum: 39c0a3d737cd961407dd749f073c540ee87f8f1d6d558ff3023ab5fb390a6b8607b18dd76ed30d9aabe7c122382877d0e20812b733bd348e39b34a0546e2caad
+  languageName: node
+  linkType: hard
+
+"react-native-reorderable-list@npm:^0.18.0":
+  version: 0.18.0
+  resolution: "react-native-reorderable-list@npm:0.18.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-gesture-handler: ">=2.12.0"
+    react-native-reanimated: ">=3.12.0"
+  checksum: d3c8e2e37a7722164c374f8a72bdf89b965d1cc966529831e56cf5cb65824816b17cb52aa444ba25fdc23deb826d596aa669b1f91b59d21a40aae2be3b69f156
   languageName: node
   linkType: hard
 

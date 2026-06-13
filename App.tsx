@@ -4,6 +4,7 @@ import {Provider} from 'react-redux';
 import {persistStore} from 'redux-persist';
 import {PersistGate} from 'redux-persist/integration/react';
 import {TamaguiProvider} from 'tamagui';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import config from './tamagui.config';
 import Home from '@/views/Home';
 import AllNotes from '@/views/AllNotes';
@@ -14,6 +15,7 @@ const Stack = createNativeStackNavigator();
 
 function App(): React.JSX.Element {
   return (
+    <GestureHandlerRootView style={{flex: 1}}>
     <Provider store={store}>
       <PersistGate persistor={persistStore(store)}>
         <TamaguiProvider config={config} defaultTheme="light">
@@ -32,6 +34,7 @@ function App(): React.JSX.Element {
         </TamaguiProvider>
       </PersistGate>
     </Provider>
+    </GestureHandlerRootView>
   );
 }
 

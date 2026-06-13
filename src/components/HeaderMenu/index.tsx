@@ -5,18 +5,20 @@ import {useSelector, useDispatch} from 'react-redux';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import {
-  exportNotes as doExport,
-  importNotes as doImport,
+  exportData,
+  importData,
 } from '@/utils/storage';
 import {setNoteList} from '@/stores/note';
+import {setQuickCopyList} from '@/stores/quickCopy';
 import type {RootState} from '@/stores';
-import type {Note} from '@/interface';
+import type {Note, QuickCopyItem} from '@/interface';
 import {Alert} from 'react-native';
 
 export default function HeaderMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const dispatch = useDispatch();
   const notes = useSelector((state: RootState) => state.note.notes as Note[]);
+  const quickCopyList = useSelector((state: RootState) => state.quickCopy.list as QuickCopyItem[]);
 
   const showToast = (msg: string) => {
     Alert.alert('', msg);
@@ -24,7 +26,7 @@ export default function HeaderMenu() {
 
   const handleExport = async () => {
     try {
-      const path = await doExport(notes);
+      const path = await exportData(notes, quickCopyList);
       showToast(`导出成功：${path}`);
     } catch (e) {
       showToast('导出失败');
@@ -33,8 +35,9 @@ export default function HeaderMenu() {
 
   const handleImport = async () => {
     try {
-      const importedNotes = await doImport();
-      dispatch(setNoteList(importedNotes));
+      const imported = await importData();
+      dispatch(setNoteList(imported.notes));
+      dispatch(setQuickCopyList(imported.quickCopy));
       showToast('导入成功');
     } catch (e) {
       showToast('导入失败');
