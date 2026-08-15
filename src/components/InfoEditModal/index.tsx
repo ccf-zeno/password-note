@@ -1,4 +1,4 @@
-import {useState, useMemo, useEffect} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {KeyboardAvoidingView, Modal, Pressable, StyleSheet} from 'react-native';
 import {Input, Text, XStack, YStack} from 'tamagui';
 import {useSelector} from 'react-redux';
@@ -91,10 +91,8 @@ const InfoEditModal = ({
       animationType="fade"
       statusBarTranslucent
       onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{flex: 1}}
-        behavior="height">
       <Pressable style={styles.overlay} onPress={onClose}>
+        <KeyboardAvoidingView style={styles.kav} behavior="padding">
         <Pressable style={styles.content} onPress={e => e.stopPropagation()}>
           <Text fontSize={18} fontWeight="700" color="#1e293b" marginBottom={16}>
             {title}
@@ -212,8 +210,8 @@ const InfoEditModal = ({
             </Pressable>
           </XStack>
         </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
-      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -226,6 +224,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 48,
+  },
+  kav: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     backgroundColor: '#fff',
